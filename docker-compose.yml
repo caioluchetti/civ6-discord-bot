@@ -14,3 +14,4 @@ services:
       - ./data.json:/app/data.json
       - ./config.json:/app/config.json
       - ./turn_history.json:/app/turn_history.json
+      - ./templates:/app/templates
