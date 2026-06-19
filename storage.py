@@ -71,30 +71,83 @@ def record_turn(game, steam_name, turn):
     _save_json(HISTORY_FILE, history)
 
 
-def get_turn_history():
+def get_turn_history(game_name=None):
     data = _load_json(HISTORY_FILE, {"history": []})
+    if game_name:
+        return [e for e in data["history"] if e["game"] == game_name]
     return data["history"]
 
 
-def get_current_turn():
+def get_all_games():
     history = get_turn_history()
+    games = {}
+    for e in history:
+        g = e["game"]
+        if g not in games:
+            games[g] = e["timestamp"]
+        else:
+            games[g] = max(games[g], e["timestamp"])
+    return sorted(games.keys())
+
+
+def get_game_order():
+    config = _load_json(CONFIG_FILE, {"notification_channel_id": None})
+    return config.get("game_order", [])
+
+
+def set_game_order(ordered_games):
+    config = _load_json(CONFIG_FILE, {"notification_channel_id": None})
+    config["game_order"] = ordered_games
+    _save_json(CONFIG_FILE, config)
+
+
+def get_player_order(game_name):
+    config = _load_json(CONFIG_FILE, {"notification_channel_id": None})
+    orders = config.get("game_orders", {})
+    return orders.get(game_name)
+
+
+def set_player_order(game_name, ordered_players):
+    config = _load_json(CONFIG_FILE, {"notification_channel_id": None})
+    if "game_orders" not in config:
+        config["game_orders"] = {}
+    config["game_orders"][game_name] = ordered_players
+    _save_json(CONFIG_FILE, config)
+
+
+def clear_player_order(game_name):
+    config = _load_json(CONFIG_FILE, {"notification_channel_id": None})
+    if "game_orders" in config and game_name in config["game_orders"]:
+        del config["game_orders"][game_name]
+    _save_json(CONFIG_FILE, config)
+
+
+def get_current_turn(game_name=None):
+    history = get_turn_history(game_name)
     if not history:
         return "?"
     return history[-1]["turn"]
 
 
-def get_last_update():
-    history = get_turn_history()
+def get_last_update(game_name=None):
+    history = get_turn_history(game_name)
     if not history:
         return None
     return history[-1]["timestamp"]
 
 
-def is_round_complete(turn_number):
+def get_last_game_name_for_players():
+    history = get_turn_history()
+    for e in reversed(history):
+        return e["game"]
+    return None
+
+
+def is_round_complete(turn_number, game_name=None):
     players = get_all_players()
     if not players:
         return False
-    history = get_turn_history()
+    history = get_turn_history(game_name)
     finished = set()
     for entry in reversed(history):
         if entry["turn"] == str(turn_number):
@@ -104,8 +157,8 @@ def is_round_complete(turn_number):
     return set(players.keys()).issubset(finished)
 
 
-def get_player_stats():
-    history = get_turn_history()
+def get_player_stats(game_name=None):
+    history = get_turn_history(game_name)
     players = get_all_players()
     if not history or not players:
         return {}
@@ -127,11 +180,15 @@ def get_player_stats():
             last_turn[name] = int(entry["turn"])
             last_timestamp[name] = datetime.fromisoformat(entry["timestamp"])
 
-    player_order = sorted(
-        last_timestamp.items(),
-        key=lambda x: x[1],
-    )
-    order_map = {name: idx + 1 for idx, (name, _) in enumerate(player_order)}
+    manual_order = get_player_order(game_name) if game_name else None
+    if manual_order:
+        order_map = {name.lower(): idx + 1 for idx, name in enumerate(manual_order)}
+    else:
+        player_order = sorted(
+            last_timestamp.items(),
+            key=lambda x: x[1],
+        )
+        order_map = {name: idx + 1 for idx, (name, _) in enumerate(player_order)}
 
     stats = {}
     for name in players:

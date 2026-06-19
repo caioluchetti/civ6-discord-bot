@@ -57,8 +57,10 @@ class Setup(commands.Cog):
     @app_commands.command(name="webhook", description="Get the webhook URL to paste into Civ 6")
     async def webhook(self, interaction: discord.Interaction):
         url = f"{self.public_url}/webhook"
+        dash = f"{self.public_url}/"
         await interaction.response.send_message(
-            f"Paste this URL into Civ 6's Play By Cloud webhook settings:\n\n`{url}`",
+            f"**Webhook URL** (paste into Civ 6):\n`{url}`\n\n"
+            f"**Dashboard:** {dash}",
             ephemeral=True,
         )
 
@@ -77,6 +79,7 @@ class Setup(commands.Cog):
 
         lines = [
             f"**Webhook URL:** `{self.public_url}/webhook`",
+            f"**Dashboard:** {self.public_url}/",
             f"**Notification channel:** {f'<#{channel_id}>' if channel_id else '*Not set*'}",
             f"**Registered players:** {player_count}",
         ]
