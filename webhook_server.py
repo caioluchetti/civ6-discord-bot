@@ -1,9 +1,22 @@
+import asyncio
 import json
 import logging
+import os
+from datetime import datetime, timezone
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 
-from storage import get_discord_id, get_notification_channel
+from storage import (
+    get_discord_id,
+    get_notification_channel,
+    record_turn,
+    is_round_complete,
+    get_player_stats,
+    get_current_turn,
+    get_last_update,
+    format_duration,
+    get_all_players,
+)
 
 logger = logging.getLogger("webhook_server")
 app = Flask(__name__)
@@ -14,6 +27,47 @@ _bot_client = None
 def set_bot_client(client):
     global _bot_client
     _bot_client = client
+
+
+async def _send_to_discord(channel, message):
+    await channel.send(message)
+
+
+def _build_recap_message():
+    stats = get_player_stats()
+    if not stats:
+        return None
+
+    turn = get_current_turn()
+    lines = [f"**Round {turn} complete!**\n"]
+
+    lines.append("```")
+    lines.append(f"{'Player':<16} {'Order':<6} {'Avg Wait':<10} {'Avg Play':<10}")
+    lines.append("-" * 44)
+
+    ordered = sorted(stats.items(), key=lambda x: x[1]["order"])
+    for name, s in ordered:
+        order = f"#{s['order']}"
+        lines.append(
+            f"{name:<16} {order:<6} {s['avg_wait']:<10} {s['avg_play']:<10}"
+        )
+    lines.append("```")
+
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    total_wait_sec = 0
+    count = 0
+    for s in stats.values():
+        if isinstance(s["avg_wait"], str) and "m" in s["avg_wait"]:
+            parts = s["avg_wait"].replace("m", "").replace("s", "").split()
+            if len(parts) == 2:
+                total_wait_sec += int(parts[0]) * 60 + int(parts[1])
+                count += 1
+    if count > 0:
+        avg_all = format_duration(total_wait_sec / count)
+        lines.append(f"Average wait across all players: **{avg_all}**")
+
+    return "\n".join(lines)
 
 
 @app.route("/webhook", methods=["POST"])
@@ -56,17 +110,66 @@ def webhook():
         f"Game: **{game_name}**"
     )
 
-    import asyncio
+    future = asyncio.run_coroutine_threadsafe(
+        _send_to_discord(channel, message),
+        _bot_client.loop,
+    )
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.ensure_future(channel.send(message))
-        else:
-            loop.run_until_complete(channel.send(message))
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(channel.send(message))
+        future.result(timeout=10)
+        logger.info("Turn notification sent for %s", steam_name)
+    except Exception as e:
+        logger.error("Failed to send Discord message: %s", e)
+        return "Failed to send notification", 500
 
-    logger.info("Turn notification sent for %s", steam_name)
+    record_turn(game_name, steam_name, turn_number)
+
+    if is_round_complete(turn_number):
+        recap = _build_recap_message()
+        if recap:
+            recap_future = asyncio.run_coroutine_threadsafe(
+                _send_to_discord(channel, recap),
+                _bot_client.loop,
+            )
+            try:
+                recap_future.result(timeout=10)
+                logger.info("Round recap sent for turn %s", turn_number)
+            except Exception as e:
+                logger.error("Failed to send recap: %s", e)
+
     return "ok", 200
+
+
+@app.route("/")
+def dashboard():
+    stats = get_player_stats()
+    last_update = get_last_update()
+    current_turn = get_current_turn()
+    players = get_all_players()
+
+    game_name = players.get("_game_name", "Your Game")
+
+    if last_update:
+        last_ts = datetime.fromisoformat(last_update)
+        now = datetime.now(timezone.utc)
+        delta = now - last_ts
+        if delta.total_seconds() < 60:
+            last_update_str = "just now"
+        elif delta.total_seconds() < 3600:
+            last_update_str = f"{int(delta.total_seconds() // 60)}m ago"
+        elif delta.total_seconds() < 86400:
+            last_update_str = f"{int(delta.total_seconds() // 3600)}h ago"
+        else:
+            last_update_str = f"{int(delta.total_seconds() // 86400)}d ago"
+    else:
+        last_update_str = "never"
+
+    public_url = os.getenv("PUBLIC_URL", "http://localhost:5000")
+
+    return render_template(
+        "dashboard.html",
+        game_name=game_name,
+        current_turn=current_turn,
+        last_update=last_update_str,
+        stats=stats,
+        webhook_url=f"{public_url}/webhook",
+    )

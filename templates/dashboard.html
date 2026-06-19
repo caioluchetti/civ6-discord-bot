@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="30">
+<title>Civ 6 Turn Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a1b1e;
+    color: #c9cdd4;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 {
+    font-size: 24px;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  h1 span { color: #5865f2; }
+  .meta {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #80848e;
+  }
+  .meta strong { color: #b0b5bf; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #2b2d31;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #80848e;
+    background: #1e1f22;
+    border-bottom: 1px solid #3f4147;
+  }
+  td {
+    padding: 12px 16px;
+    font-size: 14px;
+    border-bottom: 1px solid #2e3035;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #313438; }
+  .order-badge {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 600;
+    background: #5865f2;
+    color: #fff;
+  }
+  .player-name { font-weight: 500; color: #fff; }
+  .last-turn { font-weight: 600; color: #fff; }
+  .no-data {
+    text-align: center;
+    padding: 48px 16px;
+    color: #80848e;
+  }
+  .no-data p { font-size: 16px; margin-bottom: 8px; }
+  .no-data small { font-size: 13px; }
+  .refresh-note {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 12px;
+    color: #4f545c;
+  }
+  .footer {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 12px;
+    color: #4f545c;
+  }
+  .footer a { color: #5865f2; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1><span>&#9876;</span> Civ 6 Turn Tracker</h1>
+
+  <div class="meta">
+    <div>Game: <strong>{{ game_name }}</strong></div>
+    <div>Turn: <strong>{{ current_turn }}</strong></div>
+    <div>Last update: <strong>{{ last_update }}</strong></div>
+  </div>
+
+  {% if stats %}
+  <table>
+    <thead>
+      <tr>
+        <th>Player</th>
+        <th>Order</th>
+        <th>Avg Wait</th>
+        <th>Avg Play</th>
+        <th>Last Turn</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set ordered = stats.items()|sort(attribute='1.order') %}
+      {% for name, s in ordered %}
+      <tr>
+        <td><span class="player-name">{{ name }}</span></td>
+        <td><span class="order-badge">{{ s.order }}</span></td>
+        <td>{{ s.avg_wait }}</td>
+        <td>{{ s.avg_play }}</td>
+        <td><span class="last-turn">{{ s.last_turn }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="no-data">
+    <p>No turn data yet.</p>
+    <small>Webhook notifications will appear here once Civ 6 starts sending them.</small>
+  </div>
+  {% endif %}
+
+  <div class="refresh-note">Auto-refreshes every 30 seconds</div>
+
+  <div class="footer">
+    Webhook URL: <code>{{ webhook_url }}</code>
+  </div>
+</div>
+</body>
+</html>

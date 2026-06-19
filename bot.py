@@ -13,6 +13,7 @@ from webhook_server import app, set_bot_client
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+GUILD_ID = os.getenv("DISCORD_GUILD_ID")
 PORT = int(os.getenv("PORT", "5000"))
 PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:5000")
 
@@ -24,16 +25,20 @@ logger = logging.getLogger("bot")
 
 
 class Civ6Bot(commands.Bot):
-    def __init__(self, public_url: str):
+    def __init__(self, public_url: str, guild_id: str):
         intents = discord.Intents.default()
-        intents.message_content = True
         super().__init__(command_prefix="!", intents=intents)
         self.public_url = public_url
+        self.guild_id = int(guild_id)
 
     async def setup_hook(self):
-        await self.load_extension("cogs.setup")
+        self.tree.clear_commands(guild=None)
         await self.tree.sync()
-        logger.info("Slash commands synced")
+        await self.load_extension("cogs.setup")
+        guild = discord.Object(id=self.guild_id)
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
+        logger.info("Slash commands synced to guild %s", self.guild_id)
 
     async def on_ready(self):
         logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
@@ -50,7 +55,11 @@ if __name__ == "__main__":
         logger.fatal("DISCORD_BOT_TOKEN not set in .env")
         sys.exit(1)
 
-    bot = Civ6Bot(public_url=PUBLIC_URL)
+    if not GUILD_ID:
+        logger.fatal("DISCORD_GUILD_ID not set in .env")
+        sys.exit(1)
+
+    bot = Civ6Bot(public_url=PUBLIC_URL, guild_id=GUILD_ID)
     set_bot_client(bot)
 
     flask_thread = threading.Thread(target=run_flask, daemon=True)
