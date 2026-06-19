@@ -304,6 +304,95 @@
     font-size: 12px;
     font-family: monospace;
   }
+
+  .menu-toggle {
+    display: none;
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 101;
+    background: rgba(20, 25, 32, 0.95);
+    color: #c89b3c;
+    border: 1px solid #5a4b31;
+    border-radius: 4px;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    text-transform: none;
+  }
+
+  .menu-toggle:hover {
+    background: #2e3540;
+    border-color: #c89b3c;
+  }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 99;
+  }
+
+  .sidebar-overlay.visible { display: block; }
+
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  @media (max-width: 768px) {
+    body { flex-direction: column; }
+
+    .menu-toggle { display: flex; }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: -280px;
+      width: 280px;
+      height: 100vh;
+      height: 100dvh;
+      z-index: 100;
+      transition: left 0.25s ease;
+      border-right: 2px solid #4a3e26;
+    }
+
+    .sidebar.open { left: 0; }
+
+    .main { padding: 56px 12px 24px; }
+
+    h1 { font-size: 20px; }
+    h1 span { font-size: 24px; }
+
+    .meta {
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+    }
+
+    .toolbar { flex-wrap: wrap; }
+
+    table { min-width: 600px; }
+
+    th { padding: 10px 12px; font-size: 11px; }
+    td { padding: 10px 12px; font-size: 13px; }
+
+    button {
+      padding: 10px 14px;
+      font-size: 12px;
+      min-height: 44px;
+    }
+
+    .no-data { padding: 40px 12px; }
+    .no-data p { font-size: 17px; }
+    .no-data small { font-size: 13px; }
+
+    .footer code { word-break: break-all; font-size: 11px; }
+
+    .refresh-note { font-size: 11px; }
+  }
 </style>
 </head>
 <body>
@@ -331,6 +420,10 @@
   {% endif %}
 </aside>
 
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
+
 <main class="main" id="main-content">
   <h1><span>&#9876;</span> BeikãoBOT CIV TRACKER 🍔</h1>
 
@@ -342,12 +435,14 @@
 
   {% if stats %}
   <div class="toolbar">
+    <button id="btn-ping" onclick="pingPlayer()" title="Ping whoever's turn it is">&#x1F514; Ping</button>
     <button id="btn-edit-order" onclick="togglePlayerEdit()">Edit Turn Order</button>
     <button id="btn-save-order" class="primary" style="display:none" onclick="savePlayerOrder()">Seal Decree</button>
     {% if has_manual_order %}
     <button id="btn-reset-order" class="danger" onclick="resetPlayerOrder()">Reset Order</button>
     {% endif %}
   </div>
+  <div class="table-wrapper">
   <table>
     <thead>
       <tr>
@@ -376,6 +471,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <div class="no-data">
     <p>Waiting for the first player to play...</p>
@@ -551,6 +647,42 @@ document.addEventListener('click', (e) => {
     const li = e.target.closest('#game-list li[data-url]');
     if (li) window.location.href = li.dataset.url;
 });
+
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('visible');
+}
+
+function closeSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.remove('open');
+    overlay.classList.remove('visible');
+}
+
+async function pingPlayer() {
+    const btn = document.getElementById('btn-ping');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.textContent = '...';
+    const gameName = document.querySelector('#game-list li.active')?.dataset?.game || '{{ game_name }}';
+    try {
+        const resp = await fetch('/api/game/' + encodeURIComponent(gameName) + '/ping', { method: 'POST' });
+        const data = await resp.json();
+        if (data.ok) {
+            btn.innerHTML = '&#x2713; Sent';
+            setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 2000);
+        } else {
+            btn.innerHTML = '&#x2717; Error';
+            setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 3000);
+        }
+    } catch {
+        btn.innerHTML = '&#x2717; Error';
+        setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 3000);
+    }
+}
 </script>
 
 </body>

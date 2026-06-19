@@ -233,6 +233,41 @@ def get_player_stats(game_name=None):
     return stats
 
 
+def get_next_player(game_name=None):
+    players = get_all_players()
+    if not players:
+        return None
+
+    current_turn = get_current_turn(game_name)
+    if current_turn == "?":
+        manual_order = get_player_order(game_name)
+        if manual_order:
+            return manual_order[0]
+        return next(iter(players))
+
+    current_turn_int = int(current_turn)
+    history = get_turn_history(game_name)
+
+    played = set()
+    for entry in reversed(history):
+        if int(entry["turn"]) == current_turn_int:
+            played.add(entry["username"])
+        elif int(entry["turn"]) < current_turn_int:
+            break
+
+    manual_order = get_player_order(game_name)
+    if manual_order:
+        ordered = [p.lower() for p in manual_order]
+    else:
+        ordered = list(players.keys())
+
+    for name in ordered:
+        if name not in played:
+            return name
+
+    return ordered[0] if ordered else None
+
+
 def format_duration(seconds):
     seconds = int(seconds)
     if seconds < 60:

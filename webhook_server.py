@@ -9,6 +9,7 @@ from flask import Flask, request, jsonify, render_template, redirect
 
 from storage import (
     get_discord_id,
+    get_next_player,
     get_notification_channel,
     record_turn,
     is_round_complete,
@@ -218,3 +219,41 @@ def api_player_order(game_name):
 def api_player_order_delete(game_name):
     clear_player_order(game_name)
     return jsonify({"ok": True})
+
+
+@app.route("/api/game/<path:game_name>/ping", methods=["POST"])
+def api_ping_player(game_name):
+    if _bot_client is None:
+        return jsonify({"error": "Bot not ready"}), 503
+
+    channel_id = get_notification_channel()
+    if not channel_id:
+        return jsonify({"error": "No notification channel configured"}), 400
+
+    channel = _bot_client.get_channel(int(channel_id))
+    if channel is None:
+        return jsonify({"error": "Channel not found"}), 400
+
+    next_player = get_next_player(game_name)
+    if not next_player:
+        return jsonify({"error": "No players registered"}), 400
+
+    discord_id = get_discord_id(next_player)
+    mention = f"<@{discord_id}>" if discord_id else f"**{next_player}**"
+
+    message = (
+        f"\U0001f514 {mention}, it's your turn!\n"
+        f"Game: **{game_name}**"
+    )
+
+    future = asyncio.run_coroutine_threadsafe(
+        _send_to_discord(channel, message),
+        _bot_client.loop,
+    )
+    try:
+        future.result(timeout=10)
+        logger.info("Ping sent for %s in game %s", next_player, game_name)
+        return jsonify({"ok": True, "player": next_player})
+    except Exception as e:
+        logger.error("Failed to send ping: %s", e)
+        return jsonify({"error": "Failed to send ping"}), 500
