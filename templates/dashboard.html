@@ -6,233 +6,356 @@
 <meta http-equiv="refresh" content="30">
 <title>Civ 6 Turn Tracker — {{ game_name }}</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap');
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    background: #1a1b1e;
-    color: #c9cdd4;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(circle at top right, #1f2731, #0f1318 80%);
+    color: #e2d7c1;
+    font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     display: flex;
     min-height: 100vh;
   }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #0f1318; }
+  ::-webkit-scrollbar-thumb { background: #5a4b31; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #c89b3c; }
+
   .sidebar {
-    width: 220px;
-    background: #2b2d31;
+    width: 240px;
+    background: rgba(20, 25, 32, 0.95);
     padding: 20px 0;
     flex-shrink: 0;
-    border-right: 1px solid #3f4147;
+    border-right: 2px solid #4a3e26;
     display: flex;
     flex-direction: column;
   }
+
   .sidebar-header {
-    padding: 0 16px 12px;
-    font-size: 13px;
-    font-weight: 600;
+    padding: 0 16px 16px;
+    font-family: 'Cinzel', serif;
+    font-size: 15px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #80848e;
+    letter-spacing: 0.1em;
+    color: #c89b3c;
+    border-bottom: 1px solid rgba(200, 155, 60, 0.2);
+    margin-bottom: 8px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
   }
+
   .game-list {
     list-style: none;
     flex: 1;
     overflow-y: auto;
   }
+
   .game-list li {
     display: flex;
     align-items: center;
-    padding: 8px 16px;
+    padding: 10px 16px;
     cursor: pointer;
     font-size: 14px;
-    color: #b0b5bf;
-    border-left: 3px solid transparent;
-    transition: background 0.15s;
+    color: #a9a290;
+    border-left: 4px solid transparent;
+    transition: all 0.2s ease;
     user-select: none;
+    font-weight: 500;
   }
-  .game-list li:hover { background: #313438; }
+
+  .game-list li:hover {
+    background: linear-gradient(90deg, rgba(200,155,60,0.1) 0%, transparent 100%);
+    color: #e2d7c1;
+  }
+
   .game-list li.active {
-    background: #404249;
-    border-left-color: #5865f2;
+    background: linear-gradient(90deg, rgba(200,155,60,0.2) 0%, transparent 100%);
+    border-left-color: #c89b3c;
     color: #fff;
+    text-shadow: 0 0 8px rgba(200, 155, 60, 0.5);
   }
+
   .game-list li.dragging { opacity: 0.4; }
-  .game-list li.drag-over { background: #3f4147; outline: 2px dashed #5865f2; outline-offset: -2px; }
-  .game-count {
-    padding: 8px 16px 0;
-    font-size: 11px;
-    color: #80848e;
+  .game-list li.drag-over {
+    background: rgba(200, 155, 60, 0.1);
+    outline: 1px dashed #c89b3c;
+    outline-offset: -2px;
   }
+
   .sidebar-buttons {
-    padding: 12px 16px 0;
-    display: flex;
-    gap: 6px;
-  }
-  .sidebar-buttons button {
-    flex: 1;
-    padding: 6px 8px;
-    font-size: 11px;
-  }
-  .main {
-    flex: 1;
-    padding: 24px;
-    overflow-y: auto;
-  }
-  h1 {
-    font-size: 24px;
-    color: #fff;
-    margin-bottom: 4px;
-  }
-  h1 span { color: #5865f2; }
-  .meta {
-    display: flex;
-    gap: 24px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    color: #80848e;
-  }
-  .meta strong { color: #b0b5bf; }
-  .toolbar {
+    padding: 16px;
     display: flex;
     gap: 8px;
-    margin-bottom: 12px;
+    border-top: 1px solid rgba(200, 155, 60, 0.2);
   }
-  button {
-    background: #4e5058;
-    color: #dcddde;
-    border: none;
-    padding: 6px 14px;
-    font-size: 13px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: inherit;
-    transition: background 0.15s;
-  }
-  button:hover { background: #6d6f78; }
-  button.primary { background: #5865f2; color: #fff; }
-  button.primary:hover { background: #4752c4; }
-  button.danger { background: #a12d2d; color: #fff; }
-  button.danger:hover { background: #c43838; }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    background: #2b2d31;
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  th {
-    text-align: left;
-    padding: 12px 16px;
+
+  .sidebar-buttons button {
+    flex: 1;
+    padding: 8px;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #80848e;
-    background: #1e1f22;
-    border-bottom: 1px solid #3f4147;
   }
-  td {
-    padding: 12px 16px;
+
+  .main {
+    flex: 1;
+    padding: 40px;
+    overflow-y: auto;
+    background-image: url("data:image/svg+xml,%3Csvg width='80' height='69' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M40 0 L80 20 L80 49 L40 69 L0 49 L0 20 Z' fill='none' stroke='rgba(200,155,60,0.04)' stroke-width='1.5'/%3E%3C/svg%3E");
+  }
+
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 32px;
+    color: #e2d7c1;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+    letter-spacing: 0.05em;
+  }
+
+  h1 span {
+    color: #c89b3c;
+    font-size: 36px;
+    vertical-align: bottom;
+  }
+
+  .meta {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 24px;
     font-size: 14px;
-    border-bottom: 1px solid #2e3035;
+    color: #a9a290;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px 20px;
+    border-radius: 4px;
+    border: 1px solid rgba(200, 155, 60, 0.15);
   }
-  tr:last-child td { border-bottom: none; }
-  tbody tr:hover td { background: #313438; }
-  tbody tr[draggable=true] { cursor: grab; }
-  tbody tr.dragging { opacity: 0.4; }
-  tbody tr.drag-over td { background: #3f4147; border-top: 2px solid #5865f2; }
-  .order-badge {
-    display: inline-block;
-    width: 28px;
-    height: 28px;
-    line-height: 28px;
-    text-align: center;
-    border-radius: 50%;
+
+  .meta strong { color: #c89b3c; font-weight: 600; }
+
+  .toolbar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  button {
+    background: #242a33;
+    color: #c89b3c;
+    border: 1px solid #5a4b31;
+    padding: 8px 16px;
     font-size: 13px;
     font-weight: 600;
-    background: #5865f2;
-    color: #fff;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
-  .player-name { font-weight: 500; color: #fff; }
-  .last-turn { font-weight: 600; color: #fff; }
+
+  button:hover {
+    background: #2e3540;
+    border-color: #c89b3c;
+    box-shadow: 0 0 8px rgba(200, 155, 60, 0.3);
+  }
+
+  button.primary {
+    background: linear-gradient(to bottom, #d2a647, #a47a27);
+    color: #111;
+    border: 1px solid #ebd28e;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+  }
+
+  button.primary:hover {
+    background: linear-gradient(to bottom, #ebd28e, #c89b3c);
+  }
+
+  button.danger {
+    background: linear-gradient(to bottom, #8a2525, #5a1515);
+    color: #e2d7c1;
+    border-color: #a13535;
+  }
+
+  button.danger:hover { background: linear-gradient(to bottom, #a13535, #7a1d1d); }
+
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: rgba(20, 25, 32, 0.85);
+    border-radius: 4px;
+    border: 2px solid #4a3e26;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  }
+
+  th {
+    text-align: left;
+    padding: 16px;
+    font-size: 13px;
+    font-family: 'Cinzel', serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #c89b3c;
+    background: rgba(10, 13, 18, 0.95);
+    border-bottom: 2px solid #5a4b31;
+  }
+
+  th:first-child { border-top-left-radius: 2px; }
+  th:last-child { border-top-right-radius: 2px; }
+
+  td {
+    padding: 14px 16px;
+    font-size: 15px;
+    border-bottom: 1px solid rgba(200, 155, 60, 0.1);
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover td { background: rgba(200, 155, 60, 0.05); }
+
+  tbody tr[draggable=true] { cursor: grab; }
+  tbody tr.dragging { opacity: 0.4; }
+  tbody tr.drag-over td {
+    background: rgba(200, 155, 60, 0.1);
+    border-top: 2px solid #c89b3c;
+  }
+
+  .order-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #c89b3c, #8a641c);
+    color: #111;
+    border: 1px solid #ebd28e;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  }
+
+  .player-name {
+    font-weight: 600;
+    color: #fff;
+    font-size: 16px;
+  }
+
+  .last-turn { font-weight: 600; color: #c89b3c; }
+
   .drag-handle {
     display: none;
     cursor: grab;
-    color: #80848e;
-    margin-right: 8px;
-    font-size: 16px;
+    color: #c89b3c;
+    margin-right: 12px;
+    font-size: 18px;
     user-select: none;
   }
+
   tr[draggable=true] .drag-handle { display: inline; }
+
   .no-data {
     text-align: center;
-    padding: 48px 16px;
-    color: #80848e;
+    padding: 64px 16px;
+    color: #a9a290;
+    background: rgba(20, 25, 32, 0.6);
+    border: 1px dashed #5a4b31;
+    border-radius: 4px;
   }
-  .no-data p { font-size: 16px; margin-bottom: 8px; }
-  .no-data small { font-size: 13px; }
-  .refresh-note { text-align: center; margin-top: 16px; font-size: 12px; color: #4f545c; }
+
+  .no-data p {
+    font-family: 'Cinzel', serif;
+    font-size: 20px;
+    margin-bottom: 12px;
+    color: #c89b3c;
+  }
+
+  .no-data small { font-size: 14px; }
+
+  .refresh-note {
+    text-align: right;
+    margin-top: 12px;
+    font-size: 12px;
+    color: #7a7361;
+    font-style: italic;
+  }
+
   .footer {
     text-align: center;
-    margin-top: 32px;
-    font-size: 12px;
-    color: #4f545c;
+    margin-top: 48px;
+    font-size: 13px;
+    color: #7a7361;
+    border-top: 1px solid rgba(200, 155, 60, 0.1);
+    padding-top: 16px;
   }
-  .footer a { color: #5865f2; text-decoration: none; }
+
+  .footer a { color: #c89b3c; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
   .footer code {
-    background: #2b2d31;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 11px;
+    background: rgba(0, 0, 0, 0.4);
+    color: #a9a290;
+    padding: 4px 8px;
+    border: 1px solid #4a3e26;
+    border-radius: 2px;
+    font-size: 12px;
+    font-family: monospace;
   }
 </style>
 </head>
 <body>
 
 <aside class="sidebar">
-  <div class="sidebar-header">Games</div>
+  <div class="sidebar-header">Imperial Records</div>
   <ul class="game-list" id="game-list">
     {% for g in all_games %}
     <li class="{% if g == game_name %}active{% endif %}"
         data-game="{{ g }}"
         draggable="false"
         data-url="/game/{{ g|urlencode }}">
-      ≡ {{ g }}
+      &#x2B21; {{ g }}
     </li>
     {% endfor %}
     {% if not all_games %}
-    <li class="active" data-game="No Games Yet">No games yet</li>
+    <li class="active" data-game="No Games Yet">No campaigns yet</li>
     {% endif %}
   </ul>
   {% if all_games %}
   <div class="sidebar-buttons" id="sidebar-buttons">
-    <button id="btn-reorder-games" onclick="toggleGameReorder()">Reorder Games</button>
+    <button id="btn-reorder-games" onclick="toggleGameReorder()">Reorder</button>
     <button id="btn-save-games" class="primary" style="display:none" onclick="saveGameOrder()">Save</button>
   </div>
   {% endif %}
 </aside>
 
 <main class="main" id="main-content">
-  <h1><span>&#9876;</span> Civ 6 Turn Tracker</h1>
+  <h1><span>&#9876;</span> Turn Tracker</h1>
 
   <div class="meta">
-    <div>Game: <strong>{{ game_name }}</strong></div>
-    <div>Turn: <strong>{{ current_turn }}</strong></div>
-    <div>Last update: <strong>{{ last_update }}</strong></div>
+    <div>Campaign: <strong>{{ game_name }}</strong></div>
+    <div>Current Epoch: <strong>Turn {{ current_turn }}</strong></div>
+    <div>Cartography updated: <strong>{{ last_update }}</strong></div>
   </div>
 
   {% if stats %}
   <div class="toolbar">
-    <button id="btn-edit-order" onclick="togglePlayerEdit()">Edit Order</button>
-    <button id="btn-save-order" class="primary" style="display:none" onclick="savePlayerOrder()">Save Order</button>
+    <button id="btn-edit-order" onclick="togglePlayerEdit()">Edit Turn Order</button>
+    <button id="btn-save-order" class="primary" style="display:none" onclick="savePlayerOrder()">Seal Decree</button>
     {% if has_manual_order %}
-    <button id="btn-reset-order" class="danger" onclick="resetPlayerOrder()">Reset</button>
+    <button id="btn-reset-order" class="danger" onclick="resetPlayerOrder()">Reset Order</button>
     {% endif %}
   </div>
   <table>
     <thead>
       <tr>
-        <th style="width:180px">Player</th>
-        <th style="width:60px">Order</th>
-        <th style="width:100px">Avg Wait</th>
-        <th style="width:100px">Avg Play</th>
-        <th style="width:100px">Last Turn</th>
+        <th style="width:200px">Leader</th>
+        <th style="width:80px; text-align: center;">Order</th>
+        <th style="width:120px">Avg Wait</th>
+        <th style="width:120px">Avg Play</th>
+        <th style="width:120px">Last Turn</th>
       </tr>
     </thead>
     <tbody id="player-table-body">
@@ -240,10 +363,12 @@
       {% for name, s in ordered %}
       <tr data-player="{{ name }}" draggable="false">
         <td>
-          <span class="drag-handle" aria-hidden="true">⠿</span>
+          <span class="drag-handle" aria-hidden="true">&#x2725;</span>
           <span class="player-name">{{ name }}</span>
         </td>
-        <td><span class="order-badge">{% if s.order <= stats|length %}{{ s.order }}{% else %}—{% endif %}</span></td>
+        <td style="text-align: center;">
+          <div class="order-badge">{% if s.order <= stats|length %}{{ s.order }}{% else %}—{% endif %}</div>
+        </td>
         <td>{{ s.avg_wait }}</td>
         <td>{{ s.avg_play }}</td>
         <td><span class="last-turn">{{ s.last_turn }}</span></td>
@@ -253,12 +378,12 @@
   </table>
   {% else %}
   <div class="no-data">
-    <p>No turn data yet.</p>
-    <small>Webhook notifications will appear here once Civ 6 starts sending them.</small>
+    <p>Awaiting the Dawn of Time...</p>
+    <small>Webhook emissaries will report here once Civilization 6 starts sending them.</small>
   </div>
   {% endif %}
 
-  <div class="refresh-note">Auto-refreshes every 30 seconds</div>
+  <div class="refresh-note">The scrolls auto-refresh every 30 seconds</div>
 
   <div class="footer">
     Webhook URL: <code>{{ webhook_url }}</code>
@@ -266,12 +391,8 @@
 </main>
 
 <script>
-// ── Game reorder state ──
 let editingGames = false;
-
-// ── Player reorder state ──
 let editingPlayers = false;
-let originalPlayerRows = [];
 
 function toggleGameReorder() {
     editingGames = !editingGames;
@@ -288,7 +409,7 @@ function toggleGameReorder() {
         saveBtn.style.display = '';
         initGameDragEvents();
     } else {
-        btn.textContent = 'Reorder Games';
+        btn.textContent = 'Reorder';
         saveBtn.style.display = 'none';
         for (const li of list.querySelectorAll('li[data-game]')) {
             li.draggable = false;
@@ -339,8 +460,6 @@ async function saveGameOrder() {
     location.reload();
 }
 
-// ── Player drag-and-drop ──
-
 function togglePlayerEdit() {
     editingPlayers = !editingPlayers;
     const tbody = document.getElementById('player-table-body');
@@ -354,12 +473,11 @@ function togglePlayerEdit() {
     }
 
     if (editingPlayers) {
-        btn.textContent = 'Cancel';
+        btn.textContent = 'Cancel Edit';
         saveBtn.style.display = '';
-        originalPlayerRows = Array.from(tbody.querySelectorAll('tr[data-player]'));
         initPlayerDragEvents(tbody);
     } else {
-        btn.textContent = 'Edit Order';
+        btn.textContent = 'Edit Turn Order';
         saveBtn.style.display = 'none';
         for (const tr of tbody.querySelectorAll('tr[data-player]')) {
             tr.draggable = false;
@@ -428,7 +546,6 @@ async function resetPlayerOrder() {
     location.reload();
 }
 
-// ── Game list click navigation ──
 document.addEventListener('click', (e) => {
     if (editingGames) return;
     const li = e.target.closest('#game-list li[data-url]');
