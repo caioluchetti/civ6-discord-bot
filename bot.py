@@ -13,7 +13,7 @@ from webhook_server import app, set_bot_client
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-GUILD_ID = os.getenv("DISCORD_GUILD_ID")
+GUILD_ID_RAW = os.getenv("DISCORD_GUILD_ID")
 PORT = int(os.getenv("PORT", "5000"))
 PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:5000")
 
@@ -23,17 +23,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger("bot")
 
+try:
+    GUILD_ID = int(GUILD_ID_RAW) if GUILD_ID_RAW else None
+except (ValueError, TypeError):
+    logger.fatal("DISCORD_GUILD_ID must be a numeric ID, got: %s", GUILD_ID_RAW)
+    sys.exit(1)
+
 
 class Civ6Bot(commands.Bot):
-    def __init__(self, public_url: str, guild_id: str):
+    def __init__(self, public_url: str, guild_id: int):
         intents = discord.Intents.default()
         super().__init__(command_prefix="!", intents=intents)
         self.public_url = public_url
-        self.guild_id = int(guild_id)
+        self.guild_id = guild_id
 
     async def setup_hook(self):
-        self.tree.clear_commands(guild=None)
-        await self.tree.sync()
         await self.load_extension("cogs.setup")
         guild = discord.Object(id=self.guild_id)
         self.tree.copy_global_to(guild=guild)

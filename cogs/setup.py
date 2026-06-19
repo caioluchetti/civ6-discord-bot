@@ -19,23 +19,25 @@ class Setup(commands.Cog):
     @app_commands.command(name="register", description="Link your game username to your Discord account")
     @app_commands.describe(username="Your game username (case-insensitive)")
     async def register(self, interaction: discord.Interaction, username: str):
+        safe = discord.utils.escape_markdown(username)
         register_player(username, str(interaction.user.id))
         await interaction.response.send_message(
-            f"Registered **{username}** as <@{interaction.user.id}>.",
+            f"Registered **{safe}** as <@{interaction.user.id}>.",
             ephemeral=True,
         )
 
     @app_commands.command(name="unregister", description="Remove a registered game username")
     @app_commands.describe(username="The game username to remove")
     async def unregister(self, interaction: discord.Interaction, username: str):
+        safe = discord.utils.escape_markdown(username)
         if unregister_player(username):
             await interaction.response.send_message(
-                f"Removed **{username}** from the registry.",
+                f"Removed **{safe}** from the registry.",
                 ephemeral=True,
             )
         else:
             await interaction.response.send_message(
-                f"**{username}** was not registered.",
+                f"**{safe}** was not registered.",
                 ephemeral=True,
             )
 
@@ -48,7 +50,8 @@ class Setup(commands.Cog):
 
         lines = []
         for username, discord_id in sorted(all_players.items()):
-            lines.append(f"- **{username}** → <@{discord_id}>")
+            safe = discord.utils.escape_markdown(username)
+            lines.append(f"- **{safe}** → <@{discord_id}>")
 
         await interaction.response.send_message(
             "**Registered Players:**\n" + "\n".join(lines),
@@ -64,7 +67,11 @@ class Setup(commands.Cog):
             ephemeral=True,
         )
 
-    @app_commands.command(name="channel", description="Set the channel where turn notifications are posted")
+    @app_commands.command(
+        name="channel",
+        description="Set the channel where turn notifications are posted",
+    )
+    @app_commands.default_permissions(manage_guild=True)
     async def channel(self, interaction: discord.Interaction):
         set_notification_channel(str(interaction.channel_id))
         await interaction.response.send_message(

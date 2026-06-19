@@ -24,11 +24,14 @@ from storage import (
     get_player_order,
     set_player_order,
     clear_player_order,
-    get_last_game_name_for_players,
+    _parse_duration,
 )
 
 logger = logging.getLogger("webhook_server")
 app = Flask(__name__)
+
+PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:5000")
+API_SECRET = os.getenv("API_SECRET", "")
 
 _bot_client = None
 
@@ -40,6 +43,32 @@ def set_bot_client(client):
 
 async def _send_to_discord(channel, message):
     await channel.send(message)
+
+
+def _notify_discord(channel, message):
+    if _bot_client is None:
+        logger.error("Bot client not set — cannot send to Discord")
+        return False, "Bot not ready"
+    future = asyncio.run_coroutine_threadsafe(
+        _send_to_discord(channel, message),
+        _bot_client.loop,
+    )
+    try:
+        future.result(timeout=10)
+        return True, None
+    except Exception as e:
+        logger.error("Failed to send Discord message: %s", e)
+        return False, str(e)
+
+
+def _resolve_channel():
+    channel_id = get_notification_channel()
+    if not channel_id:
+        return None, "No channel configured"
+    channel = _bot_client.get_channel(int(channel_id))
+    if channel is None:
+        return None, "Channel not found"
+    return channel, None
 
 
 def _build_recap_message(game_name):
@@ -65,11 +94,10 @@ def _build_recap_message(game_name):
     total_wait_sec = 0
     count = 0
     for s in stats.values():
-        if isinstance(s["avg_wait"], str) and "m" in s["avg_wait"]:
-            parts = s["avg_wait"].replace("m", "").replace("s", "").split()
-            if len(parts) == 2:
-                total_wait_sec += int(parts[0]) * 60 + int(parts[1])
-                count += 1
+        sec = _parse_duration(s["avg_wait"])
+        if sec > 0:
+            total_wait_sec += sec
+            count += 1
     if count > 0:
         avg_all = format_duration(total_wait_sec / count)
         lines.append(f"Average wait across all players: **{avg_all}**")
@@ -93,12 +121,21 @@ def _format_last_update(last_update):
         return f"{int(delta.total_seconds() // 86400)}d ago"
 
 
+def _require_secret():
+    if not API_SECRET:
+        return None
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {API_SECRET}":
+        return jsonify({"error": "Unauthorized"}), 401
+    return None
+
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
         data = request.get_json(force=True)
-    except Exception:
-        logger.warning("Invalid JSON received")
+    except (json.JSONDecodeError, ValueError, TypeError) as e:
+        logger.warning("Invalid JSON received: %s", e)
         return "Invalid JSON", 400
 
     game_name = data.get("value1", "Unknown Game")
@@ -110,19 +147,10 @@ def webhook():
         game_name, username, turn_number,
     )
 
-    if _bot_client is None:
-        logger.error("Bot client not set — cannot send notification")
-        return "Bot not ready", 503
-
-    channel_id = get_notification_channel()
-    if not channel_id:
-        logger.error("No notification channel configured")
-        return "No channel configured", 500
-
-    channel = _bot_client.get_channel(int(channel_id))
-    if channel is None:
-        logger.error("Channel not found: %s", channel_id)
-        return "Channel not found", 500
+    channel, err = _resolve_channel()
+    if err:
+        logger.error(err)
+        return err, 500
 
     discord_id = get_discord_id(username)
     mention = f"<@{discord_id}>" if discord_id else f"**{username}** (not registered)"
@@ -133,31 +161,13 @@ def webhook():
         f"Game: **{game_name}**"
     )
 
-    future = asyncio.run_coroutine_threadsafe(
-        _send_to_discord(channel, message),
-        _bot_client.loop,
-    )
-    try:
-        future.result(timeout=10)
-        logger.info("Turn notification sent for %s", username)
-    except Exception as e:
-        logger.error("Failed to send Discord message: %s", e)
-        return "Failed to send notification", 500
-
+    _notify_discord(channel, message)
     record_turn(game_name, username, turn_number)
 
     if is_round_complete(turn_number, game_name):
         recap = _build_recap_message(game_name)
         if recap:
-            recap_future = asyncio.run_coroutine_threadsafe(
-                _send_to_discord(channel, recap),
-                _bot_client.loop,
-            )
-            try:
-                recap_future.result(timeout=10)
-                logger.info("Round recap sent for turn %s, game %s", turn_number, game_name)
-            except Exception as e:
-                logger.error("Failed to send recap: %s", e)
+            _notify_discord(channel, recap)
 
     return "ok", 200
 
@@ -185,7 +195,6 @@ def dashboard(game_name):
     last_update = get_last_update(game_name)
     current_turn = get_current_turn(game_name)
     manual_order = get_player_order(game_name)
-    public_url = os.getenv("PUBLIC_URL", "http://localhost:5000")
 
     return render_template(
         "dashboard.html",
@@ -193,7 +202,7 @@ def dashboard(game_name):
         current_turn=current_turn,
         last_update=_format_last_update(last_update),
         stats=stats,
-        webhook_url=f"{public_url}/webhook",
+        webhook_url=f"{PUBLIC_URL}/webhook",
         all_games=all_games,
         has_manual_order=bool(manual_order),
     )
@@ -201,6 +210,9 @@ def dashboard(game_name):
 
 @app.route("/api/game-order", methods=["POST"])
 def api_game_order():
+    auth_err = _require_secret()
+    if auth_err:
+        return auth_err
     data = request.get_json(force=True)
     ordered = data.get("games", [])
     set_game_order(ordered)
@@ -209,6 +221,9 @@ def api_game_order():
 
 @app.route("/api/game/<path:game_name>/order", methods=["POST"])
 def api_player_order(game_name):
+    auth_err = _require_secret()
+    if auth_err:
+        return auth_err
     data = request.get_json(force=True)
     ordered = data.get("players", [])
     set_player_order(game_name, ordered)
@@ -217,22 +232,22 @@ def api_player_order(game_name):
 
 @app.route("/api/game/<path:game_name>/order", methods=["DELETE"])
 def api_player_order_delete(game_name):
+    auth_err = _require_secret()
+    if auth_err:
+        return auth_err
     clear_player_order(game_name)
     return jsonify({"ok": True})
 
 
 @app.route("/api/game/<path:game_name>/ping", methods=["POST"])
 def api_ping_player(game_name):
-    if _bot_client is None:
-        return jsonify({"error": "Bot not ready"}), 503
+    auth_err = _require_secret()
+    if auth_err:
+        return auth_err
 
-    channel_id = get_notification_channel()
-    if not channel_id:
-        return jsonify({"error": "No notification channel configured"}), 400
-
-    channel = _bot_client.get_channel(int(channel_id))
-    if channel is None:
-        return jsonify({"error": "Channel not found"}), 400
+    channel, err = _resolve_channel()
+    if err:
+        return jsonify({"error": err}), 400
 
     next_player = get_next_player(game_name)
     if not next_player:
@@ -246,14 +261,9 @@ def api_ping_player(game_name):
         f"Game: **{game_name}**"
     )
 
-    future = asyncio.run_coroutine_threadsafe(
-        _send_to_discord(channel, message),
-        _bot_client.loop,
-    )
-    try:
-        future.result(timeout=10)
-        logger.info("Ping sent for %s in game %s", next_player, game_name)
-        return jsonify({"ok": True, "player": next_player})
-    except Exception as e:
-        logger.error("Failed to send ping: %s", e)
-        return jsonify({"error": "Failed to send ping"}), 500
+    ok, err = _notify_discord(channel, message)
+    if not ok:
+        return jsonify({"error": err}), 500
+
+    logger.info("Ping sent for %s in game %s", next_player, game_name)
+    return jsonify({"ok": True, "player": next_player})

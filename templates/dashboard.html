@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="30">
 <title>Civ 6 Turn Tracker — {{ game_name }}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Noto+Sans:wght@400;500;600&display=swap');
@@ -161,6 +160,8 @@
     border-color: #c89b3c;
     box-shadow: 0 0 8px rgba(200, 155, 60, 0.3);
   }
+
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
 
   button.primary {
     background: linear-gradient(to bottom, #d2a647, #a47a27);
@@ -397,7 +398,7 @@
 </head>
 <body>
 
-<aside class="sidebar">
+<aside class="sidebar" aria-label="Game navigation">
   <div class="sidebar-header">GAMES</div>
   <ul class="game-list" id="game-list">
     {% for g in all_games %}
@@ -489,6 +490,7 @@
 <script>
 let editingGames = false;
 let editingPlayers = false;
+const GAME_NAME = '{{ game_name }}';
 
 function toggleGameReorder() {
     editingGames = !editingGames;
@@ -503,7 +505,6 @@ function toggleGameReorder() {
     if (editingGames) {
         btn.textContent = 'Cancel';
         saveBtn.style.display = '';
-        initGameDragEvents();
     } else {
         btn.textContent = 'Reorder';
         saveBtn.style.display = 'none';
@@ -511,37 +512,6 @@ function toggleGameReorder() {
             li.draggable = false;
         }
     }
-}
-
-function initGameDragEvents() {
-    const items = document.querySelectorAll('#game-list li[data-game]');
-    items.forEach(li => {
-        li.addEventListener('dragstart', (e) => {
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', li.dataset.game);
-            li.classList.add('dragging');
-        });
-        li.addEventListener('dragend', () => li.classList.remove('dragging'));
-        li.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            li.classList.add('drag-over');
-        });
-        li.addEventListener('dragleave', () => li.classList.remove('drag-over'));
-        li.addEventListener('drop', (e) => {
-            e.preventDefault();
-            li.classList.remove('drag-over');
-            const dragging = document.querySelector('#game-list li.dragging');
-            if (!dragging || dragging === li) return;
-            const list = document.getElementById('game-list');
-            const afterLi = e.offsetY > li.offsetHeight / 2;
-            if (afterLi) {
-                list.insertBefore(dragging, li.nextSibling);
-            } else {
-                list.insertBefore(dragging, li);
-            }
-        });
-    });
 }
 
 async function saveGameOrder() {
@@ -571,7 +541,6 @@ function togglePlayerEdit() {
     if (editingPlayers) {
         btn.textContent = 'Cancel Edit';
         saveBtn.style.display = '';
-        initPlayerDragEvents(tbody);
     } else {
         btn.textContent = 'Edit Turn Order';
         saveBtn.style.display = 'none';
@@ -580,39 +549,6 @@ function togglePlayerEdit() {
         }
         updateOrderBadges(tbody);
     }
-}
-
-function initPlayerDragEvents(tbody) {
-    tbody.querySelectorAll('tr[data-player]').forEach(tr => {
-        tr.addEventListener('dragstart', (e) => {
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', tr.dataset.player);
-            tr.classList.add('dragging');
-        });
-        tr.addEventListener('dragend', () => {
-            tr.classList.remove('dragging');
-            updateOrderBadges(tbody);
-        });
-        tr.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            tr.classList.add('drag-over');
-        });
-        tr.addEventListener('dragleave', () => tr.classList.remove('drag-over'));
-        tr.addEventListener('drop', (e) => {
-            e.preventDefault();
-            tr.classList.remove('drag-over');
-            const dragging = tbody.querySelector('tr.dragging');
-            if (!dragging || dragging === tr) return;
-            const afterTr = e.offsetY > tr.offsetHeight / 2;
-            if (afterTr) {
-                tbody.insertBefore(dragging, tr.nextSibling);
-            } else {
-                tbody.insertBefore(dragging, tr);
-            }
-            updateOrderBadges(tbody);
-        });
-    });
 }
 
 function updateOrderBadges(tbody) {
@@ -627,7 +563,7 @@ async function savePlayerOrder() {
     const tbody = document.getElementById('player-table-body');
     if (!tbody) return;
     const players = Array.from(tbody.querySelectorAll('tr[data-player]')).map(tr => tr.dataset.player);
-    const gameName = document.querySelector('#game-list li.active')?.dataset?.game || '{{ game_name }}';
+    const gameName = document.querySelector('#game-list li.active')?.dataset?.game || GAME_NAME;
     await fetch('/api/game/' + encodeURIComponent(gameName) + '/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -637,16 +573,99 @@ async function savePlayerOrder() {
 }
 
 async function resetPlayerOrder() {
-    const gameName = document.querySelector('#game-list li.active')?.dataset?.game || '{{ game_name }}';
+    const gameName = document.querySelector('#game-list li.active')?.dataset?.game || GAME_NAME;
     await fetch('/api/game/' + encodeURIComponent(gameName) + '/order', { method: 'DELETE' });
     location.reload();
 }
 
+// --- Delegated drag events (attached once, never duplicated) ---
+
+document.addEventListener('dragstart', (e) => {
+    const li = e.target.closest('#game-list li[data-game]');
+    if (li && editingGames) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', li.dataset.game);
+        li.classList.add('dragging');
+        return;
+    }
+    const tr = e.target.closest('#player-table-body tr[data-player]');
+    if (tr && editingPlayers) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', tr.dataset.player);
+        tr.classList.add('dragging');
+    }
+});
+
+document.addEventListener('dragend', (e) => {
+    const el = e.target.closest('.dragging');
+    if (el) el.classList.remove('dragging');
+    const tbody = document.getElementById('player-table-body');
+    if (tbody) updateOrderBadges(tbody);
+});
+
+document.addEventListener('dragover', (e) => {
+    const li = e.target.closest('#game-list li[data-game]');
+    if (li && editingGames) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        li.classList.add('drag-over');
+        return;
+    }
+    const tr = e.target.closest('#player-table-body tr[data-player]');
+    if (tr && editingPlayers) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        tr.classList.add('drag-over');
+    }
+});
+
+document.addEventListener('dragleave', (e) => {
+    const el = e.target.closest('.drag-over');
+    if (el) el.classList.remove('drag-over');
+});
+
+document.addEventListener('drop', (e) => {
+    const li = e.target.closest('#game-list li[data-game]');
+    if (li && editingGames) {
+        e.preventDefault();
+        li.classList.remove('drag-over');
+        const dragging = document.querySelector('#game-list li.dragging');
+        if (!dragging || dragging === li) return;
+        const list = document.getElementById('game-list');
+        const afterLi = e.offsetY > li.offsetHeight / 2;
+        if (afterLi) {
+            list.insertBefore(dragging, li.nextSibling);
+        } else {
+            list.insertBefore(dragging, li);
+        }
+        return;
+    }
+    const tr = e.target.closest('#player-table-body tr[data-player]');
+    if (tr && editingPlayers) {
+        e.preventDefault();
+        tr.classList.remove('drag-over');
+        const dragging = document.querySelector('#player-table-body tr.dragging');
+        if (!dragging || dragging === tr) return;
+        const tbody = document.getElementById('player-table-body');
+        const afterTr = e.offsetY > tr.offsetHeight / 2;
+        if (afterTr) {
+            tbody.insertBefore(dragging, tr.nextSibling);
+        } else {
+            tbody.insertBefore(dragging, tr);
+        }
+        updateOrderBadges(tbody);
+    }
+});
+
+// --- Sidebar navigation (guards against navigation during edit) ---
+
 document.addEventListener('click', (e) => {
-    if (editingGames) return;
+    if (editingGames || editingPlayers) return;
     const li = e.target.closest('#game-list li[data-url]');
     if (li) window.location.href = li.dataset.url;
 });
+
+// --- Hamburger menu ---
 
 function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
@@ -662,27 +681,71 @@ function closeSidebar() {
     overlay.classList.remove('visible');
 }
 
+// --- Ping button ---
+
 async function pingPlayer() {
     const btn = document.getElementById('btn-ping');
+    const originalLabel = btn.dataset.label || '\u{1F514} Ping';
+    btn.dataset.label = originalLabel;
     btn.disabled = true;
-    const original = btn.innerHTML;
-    btn.textContent = '...';
-    const gameName = document.querySelector('#game-list li.active')?.dataset?.game || '{{ game_name }}';
+    btn.innerHTML = '...';
+    const gameName = document.querySelector('#game-list li.active')?.dataset?.game || GAME_NAME;
     try {
         const resp = await fetch('/api/game/' + encodeURIComponent(gameName) + '/ping', { method: 'POST' });
         const data = await resp.json();
         if (data.ok) {
-            btn.innerHTML = '&#x2713; Sent';
-            setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 2000);
+            btn.innerHTML = '\u2713 Sent';
+            setTimeout(() => { btn.innerHTML = originalLabel; btn.disabled = false; }, 2000);
         } else {
-            btn.innerHTML = '&#x2717; Error';
-            setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 3000);
+            btn.innerHTML = '\u2717 Error';
+            setTimeout(() => { btn.innerHTML = originalLabel; btn.disabled = false; }, 3000);
         }
     } catch {
-        btn.innerHTML = '&#x2717; Error';
-        setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 3000);
+        btn.innerHTML = '\u2717 Error';
+        setTimeout(() => { btn.innerHTML = originalLabel; btn.disabled = false; }, 3000);
     }
 }
+
+// --- JS-based polling (replaces meta refresh) ---
+
+let pollTimer = null;
+
+async function pollStats() {
+    if (editingGames || editingPlayers || document.hidden) return;
+    try {
+        const gameName = document.querySelector('#game-list li.active')?.dataset?.game || GAME_NAME;
+        const resp = await fetch('/game/' + encodeURIComponent(gameName));
+        if (!resp.ok || resp.redirected) { location.reload(); return; }
+        const html = await resp.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newMeta = doc.querySelector('.meta');
+        const newTbody = doc.getElementById('player-table-body');
+        const newNoData = doc.querySelector('.no-data');
+        const newRefresh = doc.querySelector('.refresh-note');
+        const currentMeta = document.querySelector('.meta');
+        const currentTbody = document.getElementById('player-table-body');
+        const currentNoData = document.querySelector('.no-data');
+        const currentRefresh = document.querySelector('.refresh-note');
+        if (newMeta && currentMeta) currentMeta.innerHTML = newMeta.innerHTML;
+        if (newTbody && currentTbody) currentTbody.innerHTML = newTbody.innerHTML;
+        if (newRefresh && currentRefresh) currentRefresh.innerHTML = newRefresh.innerHTML;
+        const hasStats = !!newTbody;
+        const hadStats = !!currentTbody;
+        if (hasStats !== hadStats) location.reload();
+        if (newNoData && !hasStats) {
+            if (currentNoData) { currentNoData.innerHTML = newNoData.innerHTML; }
+            else { location.reload(); }
+        }
+    } catch {
+        // silent — next poll will retry
+    }
+}
+
+pollTimer = setInterval(pollStats, 30000);
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) pollStats();
+});
 </script>
 
 </body>

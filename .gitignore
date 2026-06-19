@@ -6,4 +6,5 @@ __pycache__/
 data.json
 config.json
 turn_history.json
+data/
 bot.log
