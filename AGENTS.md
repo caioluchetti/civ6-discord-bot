@@ -1,16 +1,16 @@
-# AGENTS.md — Guia para Agentes de IA
+# AGENTS.md — AI Agent Guide
 
-Este documento descreve a arquitetura, convenções e fluxo de dados do **BeikaoBot** (Civ 6 Discord Turn Tracker) para que qualquer agente de IA possa entender, modificar e manter este repositório com precisão.
-
----
-
-## Visão Geral
-
-O **BeikaoBot** é um bot de Discord + servidor web Flask que notifica jogadores de Civilization VI quando é a vez deles jogarem. Ele recebe webhooks de um jogo Civ 6 (via mod/script de automação), faz lookup dos jogadores registrados (Steam → Discord ID) e envia `@mention` no canal configurado do Discord. Inclui também um dashboard web com estatísticas por jogador (tempo médio de espera, tempo médio de jogo, ordem de turno) com drag-and-drop para reordenar jogos e jogadores.
+This document describes the architecture, conventions, and data flow of **BeikaoBot** (Civ 6 Discord Turn Tracker) so any AI agent can understand, modify, and maintain this repository with precision.
 
 ---
 
-## Arquitetura
+## Overview
+
+**BeikaoBot** is a Discord bot + Flask web server that notifies Civilization VI players when it's their turn to play. It receives webhooks from a Civ 6 game (via a mod/automation script), looks up registered players (game username → Discord ID), and sends `@mention` messages in the configured Discord channel. It also includes a web dashboard with per-player stats (average wait time, average play time, turn order) with drag-and-drop for reordering games and players.
+
+---
+
+## Architecture
 
 ```
 Civ 6 Game (mod/script)
@@ -18,7 +18,7 @@ Civ 6 Game (mod/script)
     ▼
 ┌──────────────────────────┐      ┌──────────────────────────┐
 │  webhook_server.py       │◄─────│  storage.py              │
-│  Flask (porta 5000)      │      │  JSON file-backed DB     │
+│  Flask (port 5000)       │      │  JSON file-backed DB     │
 │  - /webhook (POST)       │      │  - data.json (players)   │
 │  - /game/<name> (GET)    │      │  - config.json (configs) │
 │  - /api/* (POST/DELETE)  │      │  - turn_history.json     │
@@ -30,7 +30,7 @@ Civ 6 Game (mod/script)
 │  discord.py (asyncio)    │
 │  - Gateway client        │
 │  - Slash commands        │
-│  - Envia @mentions       │
+│  - Sends @mentions       │
 └──────────┬───────────────┘
            │
            ▼
@@ -45,51 +45,51 @@ Civ 6 Game (mod/script)
 
 ### Threading Model
 
-- **Thread principal**: `discord.py` bot (asyncio event loop + bloqueante `bot.run(TOKEN)`)
-- **Thread secundária (daemon)**: Flask (`app.run(...)`) iniciada em `bot.py:65` via `threading.Thread`
-- Comunicação entre threads: `asyncio.run_coroutine_threadsafe()` em `webhook_server.py:135` para enviar mensagens ao Discord de dentro do request Flask
+- **Main thread**: `discord.py` bot (asyncio event loop + blocking `bot.run(TOKEN)`)
+- **Secondary thread (daemon)**: Flask (`app.run(...)`) started in `bot.py:65` via `threading.Thread`
+- Cross-thread communication: `asyncio.run_coroutine_threadsafe()` in `webhook_server.py:135` to send Discord messages from within a Flask request
 
 ---
 
-## Estrutura de Arquivos
+## File Structure
 
-| Arquivo | Propósito |
-|---------|-----------|
-| `bot.py` | Entry point. Carrega `.env`, cria o bot Discord, inicia Flask em thread separada |
-| `webhook_server.py` | App Flask com rotas de webhook, dashboard e API de ordenação |
-| `storage.py` | Camada de persistência em JSON (data.json, config.json, turn_history.json) |
-| `cogs/setup.py` | Cog com todos os slash commands do Discord |
-| `templates/dashboard.html` | Template Jinja2 do dashboard web (Civilization VI themed) |
-| `Dockerfile` | Build Python 3.12-slim, copia código, executa `bot.py` |
-| `docker-compose.yml` | Orquestração: monta volumes para dados, injeta env vars |
+| File | Purpose |
+|------|---------|
+| `bot.py` | Entry point. Loads `.env`, creates Discord bot, starts Flask in a separate thread |
+| `webhook_server.py` | Flask app with webhook, dashboard, and ordering API routes |
+| `storage.py` | JSON persistence layer (data.json, config.json, turn_history.json) |
+| `cogs/setup.py` | Cog with all Discord slash commands |
+| `templates/dashboard.html` | Jinja2 template for the web dashboard (Civilization VI themed) |
+| `Dockerfile` | Python 3.12-slim build, copies code, runs `bot.py` |
+| `docker-compose.yml` | Orchestration: mounts volumes for data, injects env vars |
 | `requirements.txt` | discord.py, flask, python-dotenv |
 | `.env` | Secrets (gitignored) |
-| `.env.example` | Template de secrets (committed) |
-| `.gitignore` | Exclui .env, venv, __pycache__, data.json, config.json, turn_history.json, bot.log |
+| `.env.example` | Secrets template (committed) |
+| `.gitignore` | Excludes .env, venv, __pycache__, data.json, config.json, turn_history.json, bot.log |
 
 ---
 
-## Variáveis de Ambiente (.env)
+## Environment Variables (.env)
 
-| Variável | Obrigatória | Descrição |
-|----------|-------------|-----------|
-| `DISCORD_BOT_TOKEN` | Sim | Token do bot Discord |
-| `DISCORD_GUILD_ID` | Sim | ID do servidor/guild Discord onde os slash commands são registrados |
-| `PORT` | Não (default 5000) | Porta do servidor Flask |
-| `PUBLIC_URL` | Não (default localhost) | URL pública para o webhook e dashboard (ex: `https://civ6.example.com`) |
+| Variable | Required | Description |
+|----------|:--------:|-------------|
+| `DISCORD_BOT_TOKEN` | Yes | Discord bot token |
+| `DISCORD_GUILD_ID` | Yes | Discord server/guild ID where slash commands are registered |
+| `PORT` | No (default 5000) | Flask server port |
+| `PUBLIC_URL` | No (default localhost) | Public URL for webhook and dashboard (e.g. `https://civ6.example.com`) |
 
 ---
 
-## Fluxo de Dados
+## Data Flow
 
-### 1. Registro de Jogador
+### 1. Player Registration
 ```
-Usuário Discord → /register <steam_name>
+Discord User → /register <username>
   → cogs/setup.py:register()
   → storage.register_player() → data.json
 ```
 
-### 2. Recebimento de Turno
+### 2. Turn Notification
 ```
 Civ 6 → POST /webhook {value1, value2, value3}
   → webhook_server.py:webhook()
@@ -97,15 +97,15 @@ Civ 6 → POST /webhook {value1, value2, value3}
   → asyncio.run_coroutine_threadsafe(_send_to_discord(...))
   → Discord message: "@player, it's your turn!"
   → storage.record_turn() → turn_history.json
-  → se round completo → _build_recap_message() → storage.get_player_stats()
+  → if round complete → _build_recap_message() → storage.get_player_stats()
 ```
 
 ### 3. Dashboard
 ```
 Browser → GET /game/<name>
   → webhook_server.py:dashboard()
-  → storage.get_player_stats() (calcula médias da turn_history.json)
-  → storage.get_all_games() (lista sidebar)
+  → storage.get_player_stats() (calculates averages from turn_history.json)
+  → storage.get_all_games() (sidebar list)
   → render_template("dashboard.html")
 ```
 
@@ -123,73 +123,73 @@ Browser → DELETE /api/game/<name>/order
 
 ---
 
-## Convenções de Código
+## Code Conventions
 
-- **Python 3.12+** (verificado via Dockerfile e venv)
-- **PEP 8** estilo (4 spaces, snake_case, type hints onde relevante)
-- **Logging**: módulo `logging` padrão, format `"%(asctime)s [%(name)s] %(levelname)s: %(message)s"`
-- **Persistência**: JSON flat files (sem banco de dados). Todas as funções em `storage.py` são síncronas.
-- **Discord.py**: Slash commands via `app_commands`, prefix commands via `!`. Comandos são sincronizados para uma guild específica (não globais).
-- **Flask**: App factory implícito (`app = Flask(__name__)` no nível do módulo). Templates Jinja2.
-- **Docker**: Container roda como root (não há USER directive). Volumes montam dados para persistência.
+- **Python 3.12+** (verified via Dockerfile and venv)
+- **PEP 8** style (4 spaces, snake_case, type hints where relevant)
+- **Logging**: standard `logging` module, format `"%(asctime)s [%(name)s] %(levelname)s: %(message)s"`
+- **Persistence**: JSON flat files (no database). All functions in `storage.py` are synchronous.
+- **Discord.py**: Slash commands via `app_commands`, prefix commands via `!`. Commands are synced to a specific guild (not global).
+- **Flask**: Implicit app factory (`app = Flask(__name__)` at module level). Jinja2 templates.
+- **Docker**: Container runs as root (no USER directive). Volumes mount data for persistence.
 
-### Nomes de Steam
-- Sempre armazenados em **lowercase** (ver `storage.py:32`, `storage.py:37`, `storage.py:45`)
-- O input do usuário é convertido para lowercase antes de qualquer operação
+### Usernames
+- Always stored in **lowercase** (see `storage.py:32`, `storage.py:37`, `storage.py:45`)
+- User input is converted to lowercase before any operation
 
 ### Turn Numbers
-- Armazenados como **string** (`str(turn)`) em `record_turn()` e `get_current_turn()`
-- Comparados como `int(turn)` em `is_round_complete()` e `get_player_stats()`
+- Stored as **string** (`str(turn)`) in `record_turn()` and `get_current_turn()`
+- Compared as `int(turn)` in `is_round_complete()` and `get_player_stats()`
 
 ---
 
-## Como Rodar Localmente
+## How to Run Locally
 
 ```bash
-# Criar venv e instalar dependências
+# Create venv and install dependencies
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Criar .env com suas credenciais
+# Create .env with your credentials
 cp .env.example .env
-# Editar .env com token real do bot e guild ID
+# Edit .env with real bot token and guild ID
 
-# Rodar
+# Run
 python bot.py
 ```
 
-## Como Rodar com Docker
+## How to Run with Docker
 
 ```bash
-# Criar .env com credenciais primeiro
+# Create .env with credentials first
 docker compose up -d
 ```
 
-O dashboard fica disponível em `http://localhost:5000` (ou na `PUBLIC_URL` configurada).
+The dashboard is available at `http://localhost:5000` (or the configured `PUBLIC_URL`).
 
 ---
 
-## Testes
+## Testing
 
-Atualmente **não há testes automatizados**. Para testar manualmente:
-1. Suba o bot com `python bot.py`
-2. Use os slash commands no Discord (`/register`, `/players`, `/channel`, `/status`)
-3. Simule um webhook com curl:
+There are currently **no automated tests**. To test manually:
+1. Start the bot with `python bot.py`
+2. Use slash commands on Discord (`/register`, `/players`, `/channel`, `/status`)
+3. Simulate a webhook with curl:
    ```bash
    curl -X POST http://localhost:5000/webhook \
      -H "Content-Type: application/json" \
-     -d '{"value1":"My Game","value2":"steam_name","value3":"1"}'
+     -d '{"value1":"My Game","value2":"username","value3":"1"}'
    ```
-4. Acesse o dashboard em `http://localhost:5000`
+4. Access the dashboard at `http://localhost:5000`
 
 ---
 
-## Notas para Modificações
+## Notes for Modifications
 
-- **Adicionar novo slash command**: Criar em `cogs/setup.py` como método da classe `Setup` decorado com `@app_commands.command()`
-- **Adicionar nova rota API**: Adicionar em `webhook_server.py` como função decorada com `@app.route(...)`
-- **Adicionar novo tipo de dado persistente**: Adicionar funções de load/save em `storage.py` usando o pattern `_load_json`/`_save_json`
-- **Mudar visual do dashboard**: Editar `templates/dashboard.html` — o CSS está inline no `<style>` e o JS no `<script>` ao final
-- **Adicionar nova env var**: Adicionar leitura em `bot.py` com `os.getenv()`, documentar no `.env.example` e no `docker-compose.yml` se necessário
-- **NUNCA** commitar `.env`, `data.json`, `config.json` ou `turn_history.json` — estão no `.gitignore`
+- **Add a new slash command**: Create it in `cogs/setup.py` as a method of the `Setup` class decorated with `@app_commands.command()`
+- **Add a new API route**: Add it in `webhook_server.py` as a function decorated with `@app.route(...)`
+- **Add a new persistent data type**: Add load/save functions in `storage.py` using the `_load_json`/`_save_json` pattern
+- **Change dashboard visuals**: Edit `templates/dashboard.html` — CSS is inline in `<style>` and JS is at the end in `<script>`
+- **Add a new env var**: Read it in `bot.py` with `os.getenv()`, document in `.env.example` and `docker-compose.yml` if needed
+- **NEVER** commit `.env`, `data.json`, `config.json`, or `turn_history.json` — they are in `.gitignore`

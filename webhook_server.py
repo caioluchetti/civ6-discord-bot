@@ -101,12 +101,12 @@ def webhook():
         return "Invalid JSON", 400
 
     game_name = data.get("value1", "Unknown Game")
-    steam_name = data.get("value2", "Unknown Player")
+    username = data.get("value2", "Unknown Player")
     turn_number = data.get("value3", "?")
 
     logger.info(
         "Webhook received: game=%s, player=%s, turn=%s",
-        game_name, steam_name, turn_number,
+        game_name, username, turn_number,
     )
 
     if _bot_client is None:
@@ -123,8 +123,8 @@ def webhook():
         logger.error("Channel not found: %s", channel_id)
         return "Channel not found", 500
 
-    discord_id = get_discord_id(steam_name)
-    mention = f"<@{discord_id}>" if discord_id else f"**{steam_name}** (not registered)"
+    discord_id = get_discord_id(username)
+    mention = f"<@{discord_id}>" if discord_id else f"**{username}** (not registered)"
 
     message = (
         f"{mention}, it's your turn!\n"
@@ -138,12 +138,12 @@ def webhook():
     )
     try:
         future.result(timeout=10)
-        logger.info("Turn notification sent for %s", steam_name)
+        logger.info("Turn notification sent for %s", username)
     except Exception as e:
         logger.error("Failed to send Discord message: %s", e)
         return "Failed to send notification", 500
 
-    record_turn(game_name, steam_name, turn_number)
+    record_turn(game_name, username, turn_number)
 
     if is_round_complete(turn_number, game_name):
         recap = _build_recap_message(game_name)

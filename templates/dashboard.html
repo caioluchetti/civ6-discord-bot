@@ -309,7 +309,7 @@
 <body>
 
 <aside class="sidebar">
-  <div class="sidebar-header">JOGOS</div>
+  <div class="sidebar-header">GAMES</div>
   <ul class="game-list" id="game-list">
     {% for g in all_games %}
     <li class="{% if g == game_name %}active{% endif %}"
@@ -320,7 +320,7 @@
     </li>
     {% endfor %}
     {% if not all_games %}
-    <li class="active" data-game="No Games Yet">Sem jogos cadastrados</li>
+    <li class="active" data-game="No Games Yet">No games registered</li>
     {% endif %}
   </ul>
   {% if all_games %}
@@ -335,9 +335,9 @@
   <h1><span>&#9876;</span> BeikãoBOT CIV TRACKER 🍔</h1>
 
   <div class="meta">
-    <div>Nome do jogo: <strong>{{ game_name }}</strong></div>
-    <div>Turno atual: <strong>Turno {{ current_turn }}</strong></div>
-    <div>Última atualização: <strong>{{ last_update }}</strong></div>
+    <div>Game: <strong>{{ game_name }}</strong></div>
+    <div>Current turn: <strong>Turn {{ current_turn }}</strong></div>
+    <div>Last update: <strong>{{ last_update }}</strong></div>
   </div>
 
   {% if stats %}
@@ -378,12 +378,12 @@
   </table>
   {% else %}
   <div class="no-data">
-    <p>Esperando o primeiro preguiçoso a jogar...</p>
-    <small>Os pombos correios de Webhook vão enviar as mensagens assim que possível 🕊.</small>
+    <p>Waiting for the first player to play...</p>
+    <small>Webhook notifications will appear here once the game starts 🕊.</small>
   </div>
   {% endif %}
 
-  <div class="refresh-note">O universo atualiza a cada 30 segundos...</div>
+  <div class="refresh-note">Auto-refreshes every 30 seconds...</div>
 
   <div class="footer">
     Webhook URL: <code>{{ webhook_url }}</code>

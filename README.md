@@ -1,6 +1,6 @@
 # ⚔️ BeikaoBot — Civilization VI Discord Turn Tracker
 
-Um bot de Discord com dashboard web que notifica jogadores de Civilization VI quando é a vez deles jogarem, com estatísticas de tempo de espera, tempo médio de jogo e ordem de turno. Perfeito para partidas multiplayer assíncronas (play-by-cloud ou hotseat com bot).
+A Discord bot with a web dashboard that notifies Civilization VI players when it's their turn to play, featuring wait time stats, average play time, and turn order. Perfect for asynchronous multiplayer matches (play-by-cloud or hotseat with a bot).
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.12+-blue.svg" alt="Python 3.12+">
@@ -11,65 +11,65 @@ Um bot de Discord com dashboard web que notifica jogadores de Civilization VI qu
 
 ---
 
-## Funcionalidades
+## Features
 
-- **Notificações por Webhook**: Recebe POST do jogo Civ 6 e notifica o jogador da vez no Discord com `@mention`
-- **Multi-Jogo**: Suporta múltiplas partidas simultâneas, cada uma com seu próprio dashboard
-- **Dashboard Web Temático**: Interface com visual Civilization VI mostrando estatísticas ao vivo
-- **Estatísticas por Jogador**: Tempo médio de espera, tempo médio de jogo, último turno
-- **Recap de Rodada**: Quando todos os jogadores terminam o turno, o bot envia um resumo completo
-- **Drag-and-Drop**: Reordene jogos na sidebar e defina ordem manual de turno dos jogadores
-- **Dockerizado**: Deploy com um comando via Docker Compose
+- **Webhook Notifications**: Receives POST from Civ 6 and pings the next player on Discord with `@mention`
+- **Multi-Game**: Supports multiple simultaneous matches, each with its own dashboard
+- **Themed Web Dashboard**: Civilization VI-inspired interface showing live stats
+- **Player Stats**: Average wait time, average play time, last turn
+- **Round Recap**: When all players finish their turn, the bot sends a full summary
+- **Drag-and-Drop**: Reorder games in the sidebar and set manual player turn order
+- **Dockerized**: Deploy with a single command via Docker Compose
 
 ---
 
-## Como Funciona
+## How It Works
 
 ```
 ┌──────────────┐     POST /webhook      ┌──────────────┐     @mention       ┌──────────┐
 │   Civ 6      │ ──────────────────────→ │  BeikaoBot   │ ─────────────────→ │ Discord  │
-│  (webhook)   │   {game, player, turn}  │  Flask+Bot   │   "Sua vez!"      │ Channel  │
+│  (webhook)   │   {game, player, turn}  │  Flask+Bot   │   "Your turn!"     │ Channel  │
 └──────────────┘                         └──────┬───────┘                   └──────────┘
                                                 │
                                                 ▼
                                          ┌──────────────┐
                                          │  Dashboard   │
-                                         │  Estatísticas│
+                                         │  Stats       │
                                          │  Drag&Drop   │
                                          └──────────────┘
 ```
 
-1. Jogadores se registram no Discord com `/register <steam_name>`
-2. Configure o webhook no Civ 6 (via mod ou script) para apontar para `https://seu-bot.com/webhook`
-3. Quando um jogador termina seu turno, o Civ 6 envia um POST e o bot notifica o próximo
-4. Acesse o dashboard em `https://seu-bot.com` para ver estatísticas em tempo real
+1. Players register on Discord with `/register <username>`
+2. Configure the Civ 6 webhook (via mod or script) to point to `https://your-bot.com/webhook`
+3. When a player finishes their turn, Civ 6 sends a POST and the bot notifies the next player
+4. Access the dashboard at `https://your-bot.com` to see live stats
 
 ---
 
-## Pré-requisitos
+## Prerequisites
 
-- **Python 3.12+** (ou Docker)
-- Um **Discord Bot Token** ([Discord Developer Portal](https://discord.com/developers/applications))
-- Um **servidor com porta 5000 exposta** publicamente (para receber webhooks do Civ 6)
+- **Python 3.12+** (or Docker)
+- A **Discord Bot Token** ([Discord Developer Portal](https://discord.com/developers/applications))
+- A **server with port 5000 publicly exposed** (to receive webhooks from Civ 6)
 
 ---
 
-## Instalação Rápida
+## Quick Start
 
-### Com Docker (Recomendado)
+### With Docker (Recommended)
 
 ```bash
 git clone https://github.com/caioluchetti/civ6-discord-bot.git
 cd civ6-discord-bot
 cp .env.example .env
-# Edite .env com seu token e guild ID
+# Edit .env with your token and guild ID
 nano .env
 docker compose up -d
 ```
 
-O dashboard estará em `http://seu-ip:5000`.
+The dashboard will be available at `http://your-ip:5000`.
 
-### Sem Docker
+### Without Docker
 
 ```bash
 git clone https://github.com/caioluchetti/civ6-discord-bot.git
@@ -78,98 +78,98 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edite .env com seu token e guild ID
+# Edit .env with your token and guild ID
 python bot.py
 ```
 
 ---
 
-## Configuração
+## Configuration
 
-Crie um arquivo `.env` na raiz do projeto:
+Create a `.env` file at the project root:
 
 ```env
-DISCORD_BOT_TOKEN=seu_token_aqui
-DISCORD_GUILD_ID=id_do_seu_servidor_discord
+DISCORD_BOT_TOKEN=your_bot_token_here
+DISCORD_GUILD_ID=your_guild_id_here
 PORT=5000
-PUBLIC_URL=https://civ6.seu-dominio.com
+PUBLIC_URL=https://civ6.your-domain.com
 ```
 
-| Variável | Obrigatória | Padrão | Descrição |
-|----------|:-----------:|--------|-----------|
-| `DISCORD_BOT_TOKEN` | Sim | — | Token do bot do Discord |
-| `DISCORD_GUILD_ID` | Sim | — | ID do servidor Discord |
-| `PORT` | Não | `5000` | Porta do servidor web |
-| `PUBLIC_URL` | Não | `http://localhost:5000` | URL pública (usada no webhook e dashboard) |
+| Variable | Required | Default | Description |
+|----------|:--------:|---------|-------------|
+| `DISCORD_BOT_TOKEN` | Yes | — | Discord bot token |
+| `DISCORD_GUILD_ID` | Yes | — | Discord server ID |
+| `PORT` | No | `5000` | Web server port |
+| `PUBLIC_URL` | No | `http://localhost:5000` | Public URL (used for webhook and dashboard) |
 
 ---
 
-## Comandos do Discord
+## Discord Commands
 
-| Comando | Descrição |
-|---------|-----------|
-| `/register <steam_name>` | Vincula seu nome Steam ao seu Discord |
-| `/unregister <steam_name>` | Remove um nome Steam registrado |
-| `/players` | Lista todos os jogadores registrados |
-| `/webhook` | Mostra a URL do webhook para configurar no Civ 6 |
-| `/channel` | Define o canal atual como canal de notificações |
-| `/status` | Mostra status da configuração do bot |
+| Command | Description |
+|---------|-------------|
+| `/register <username>` | Links your game username to your Discord |
+| `/unregister <username>` | Removes a registered game username |
+| `/players` | Lists all registered players |
+| `/webhook` | Shows the webhook URL to configure in Civ 6 |
+| `/channel` | Sets the current channel as the notification channel |
+| `/status` | Shows bot configuration status |
 
 ---
 
-## Configurando o Webhook no Civ 6
+## Setting Up the Civ 6 Webhook
 
-O Civ 6 não tem suporte nativo a webhooks. Você precisará de:
+Civ 6 has no native webhook support. You'll need:
 
-- **Mod**: Um mod que detecte fim de turno e envie um HTTP POST
-- **Script externo**: Um script que leia logs do jogo e faça POST quando detectar troca de turno
+- **Mod**: A mod that detects turn completion and sends an HTTP POST
+- **External script**: A script that reads game logs and POSTs when it detects a turn change
 
-O endpoint espera um JSON no formato:
+The endpoint expects JSON in this format:
 
 ```json
 {
-  "value1": "Nome do Jogo",
-  "value2": "nome_steam_do_jogador",
+  "value1": "Game Name",
+  "value2": "player_game_username",
   "value3": "42"
 }
 ```
 
-| Campo | Descrição |
-|-------|-----------|
-| `value1` | Nome do jogo (identificador único, ex: "Brasil vs Mundo") |
-| `value2` | Steam name do jogador que acabou de jogar (case-insensitive) |
-| `value3` | Número do turno atual |
+| Field | Description |
+|-------|-------------|
+| `value1` | Game name (unique identifier, e.g. "Brazil vs World") |
+| `value2` | Game username of the player who just finished their turn (case-insensitive) |
+| `value3` | Current turn number |
 
 ---
 
-## Dashboard Web
+## Web Dashboard
 
-Acesse `https://seu-bot.com` para ver:
+Visit `https://your-bot.com` to see:
 
-- **Sidebar**: Lista de todos os jogos com drag-and-drop para reordenar
-- **Tabela de Estatísticas**: Por jogador — ordem, tempo médio de espera, tempo médio de jogo, último turno
-- **Edição de Ordem**: Botão "Edit Turn Order" para definir ordem manual (drag-and-drop), com "Reset Order" para voltar ao automático
-- **Auto-refresh**: A página atualiza a cada 30 segundos
+- **Sidebar**: List of all games with drag-and-drop to reorder
+- **Stats Table**: Per player — order, average wait time, average play time, last turn
+- **Order Editing**: "Edit Turn Order" button for manual ordering (drag-and-drop), with "Reset Order" to revert to automatic
+- **Auto-refresh**: Page refreshes every 30 seconds
 
-O tema visual é inspirado em Civilization VI (cores douradas, fonte Cinzel, background escuro com padrão hexagonal).
+The visual theme is inspired by Civilization VI (gold colors, Cinzel font, dark background with hexagonal pattern).
 
 ---
 
-## Estrutura do Projeto
+## Project Structure
 
 ```
 civ6-discord-bot/
 ├── bot.py                  # Entry point: Discord bot + Flask thread
 ├── webhook_server.py       # Flask: webhook, dashboard, APIs
-├── storage.py              # Persistência em JSON (sem banco de dados)
+├── storage.py              # JSON persistence (no database)
 ├── cogs/
-│   └── setup.py            # Slash commands do Discord
+│   └── setup.py            # Discord slash commands
 ├── templates/
-│   └── dashboard.html      # Template do dashboard web
-├── Dockerfile              # Build da imagem Docker
-├── docker-compose.yml      # Orquestração Docker
-├── requirements.txt        # Dependências Python
-├── .env.example            # Template de variáveis de ambiente
+│   └── dashboard.html      # Web dashboard template
+├── Dockerfile              # Docker image build
+├── docker-compose.yml      # Docker orchestration
+├── requirements.txt        # Python dependencies
+├── .env.example            # Environment variables template
 └── .gitignore
 ```
 
@@ -177,12 +177,12 @@ civ6-discord-bot/
 
 ## Deploy
 
-O projeto é feito para deploy com Docker em qualquer VPS. Recomenda-se usar um proxy reverso (Nginx, Caddy) com HTTPS na frente:
+The project is designed for Docker deployment on any VPS. It is recommended to use a reverse proxy (Nginx, Caddy) with HTTPS in front:
 
 ```nginx
-# Exemplo Nginx
+# Example Nginx
 server {
-    server_name civ6.seu-dominio.com;
+    server_name civ6.your-domain.com;
     location / {
         proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
@@ -193,12 +193,12 @@ server {
 
 ---
 
-## Contribuindo
+## Contributing
 
-Contribuições são bem-vindas! Abra uma issue ou PR no GitHub.
+Contributions are welcome! Open an issue or PR on GitHub.
 
 ---
 
-## Licença
+## License
 
 MIT

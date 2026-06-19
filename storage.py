@@ -27,22 +27,22 @@ def save_players(players):
     _save_json(DATA_FILE, {"players": players})
 
 
-def register_player(steam_name, discord_id):
+def register_player(username, discord_id):
     players = load_players()
-    players[steam_name.lower()] = discord_id
+    players[username.lower()] = discord_id
     save_players(players)
 
 
-def unregister_player(steam_name):
+def unregister_player(username):
     players = load_players()
-    removed = players.pop(steam_name.lower(), None)
+    removed = players.pop(username.lower(), None)
     save_players(players)
     return removed is not None
 
 
-def get_discord_id(steam_name):
+def get_discord_id(username):
     players = load_players()
-    return players.get(steam_name.lower())
+    return players.get(username.lower())
 
 
 def get_all_players():
@@ -60,11 +60,11 @@ def set_notification_channel(channel_id):
     _save_json(CONFIG_FILE, config)
 
 
-def record_turn(game, steam_name, turn):
+def record_turn(game, username, turn):
     history = _load_json(HISTORY_FILE, {"history": []})
     history["history"].append({
         "game": game,
-        "steam_name": steam_name.lower(),
+        "username": username.lower(),
         "turn": str(turn),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
@@ -151,7 +151,7 @@ def is_round_complete(turn_number, game_name=None):
     finished = set()
     for entry in reversed(history):
         if entry["turn"] == str(turn_number):
-            finished.add(entry["steam_name"])
+            finished.add(entry["username"])
         elif int(entry["turn"]) < int(turn_number):
             break
     return set(players.keys()).issubset(finished)
@@ -165,7 +165,7 @@ def get_player_stats(game_name=None):
 
     player_turns = {name: [] for name in players}
     for entry in history:
-        name = entry["steam_name"]
+        name = entry["username"]
         if name in player_turns:
             player_turns[name].append({
                 "turn": int(entry["turn"]),
@@ -175,7 +175,7 @@ def get_player_stats(game_name=None):
     last_turn = {}
     last_timestamp = {}
     for entry in history:
-        name = entry["steam_name"]
+        name = entry["username"]
         if name in players:
             last_turn[name] = int(entry["turn"])
             last_timestamp[name] = datetime.fromisoformat(entry["timestamp"])
@@ -209,7 +209,7 @@ def get_player_stats(game_name=None):
                 current_player = name
                 later_same_turn = None
                 for h in history:
-                    h_name = h["steam_name"]
+                    h_name = h["username"]
                     h_turn = int(h["turn"])
                     if h_name != current_player and h_turn == current_turn:
                         h_ts = datetime.fromisoformat(h["timestamp"])
