@@ -309,7 +309,7 @@
 <body>
 
 <aside class="sidebar">
-  <div class="sidebar-header">Imperial Records</div>
+  <div class="sidebar-header">JOGOS</div>
   <ul class="game-list" id="game-list">
     {% for g in all_games %}
     <li class="{% if g == game_name %}active{% endif %}"
@@ -320,7 +320,7 @@
     </li>
     {% endfor %}
     {% if not all_games %}
-    <li class="active" data-game="No Games Yet">No campaigns yet</li>
+    <li class="active" data-game="No Games Yet">Sem jogos cadastrados</li>
     {% endif %}
   </ul>
   {% if all_games %}
@@ -332,12 +332,12 @@
 </aside>
 
 <main class="main" id="main-content">
-  <h1><span>&#9876;</span> Turn Tracker</h1>
+  <h1><span>&#9876;</span> BeikãoBOT CIV TRACKER 🍔</h1>
 
   <div class="meta">
-    <div>Campaign: <strong>{{ game_name }}</strong></div>
-    <div>Current Epoch: <strong>Turn {{ current_turn }}</strong></div>
-    <div>Cartography updated: <strong>{{ last_update }}</strong></div>
+    <div>Nome do jogo: <strong>{{ game_name }}</strong></div>
+    <div>Turno atual: <strong>Turn {{ current_turn }}</strong></div>
+    <div>Última atualização: <strong>{{ last_update }}</strong></div>
   </div>
 
   {% if stats %}
@@ -378,12 +378,12 @@
   </table>
   {% else %}
   <div class="no-data">
-    <p>Awaiting the Dawn of Time...</p>
-    <small>Webhook emissaries will report here once Civilization 6 starts sending them.</small>
+    <p>Esperando o primeiro preguiçoso a jogar...</p>
+    <small>Os pombos correios de Webhook vão enviar as mensagens assim que possível 🕊.</small>
   </div>
   {% endif %}
 
-  <div class="refresh-note">The scrolls auto-refresh every 30 seconds</div>
+  <div class="refresh-note">O universo atualiza a cada 30 segundos...</div>
 
   <div class="footer">
     Webhook URL: <code>{{ webhook_url }}</code>
