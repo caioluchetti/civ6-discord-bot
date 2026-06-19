@@ -166,7 +166,7 @@ def get_player_stats():
 
         stats[name] = {
             "discord_id": players.get(name, ""),
-            "order": order_map.get(name, "?"),
+            "order": order_map.get(name, len(players) + 1),
             "avg_wait": avg_wait,
             "avg_play": avg_play,
             "last_turn": last_turn.get(name, "—"),

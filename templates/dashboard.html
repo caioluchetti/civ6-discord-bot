@@ -115,7 +115,7 @@
       {% for name, s in ordered %}
       <tr>
         <td><span class="player-name">{{ name }}</span></td>
-        <td><span class="order-badge">{{ s.order }}</span></td>
+        <td><span class="order-badge">{% if s.order <= stats|length %}{{ s.order }}{% else %}—{% endif %}</span></td>
         <td>{{ s.avg_wait }}</td>
         <td>{{ s.avg_play }}</td>
         <td><span class="last-turn">{{ s.last_turn }}</span></td>
