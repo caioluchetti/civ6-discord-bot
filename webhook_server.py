@@ -161,7 +161,12 @@ def webhook():
         f"Game: **{game_name}**"
     )
 
-    _notify_discord(channel, message)
+    ok, err = _notify_discord(channel, message)
+    if ok:
+        logger.info("Turn notification sent for %s (turn %s)", username, turn_number)
+    else:
+        logger.error("Turn notification failed for %s: %s", username, err)
+
     record_turn(game_name, username, turn_number)
 
     if is_round_complete(turn_number, game_name):
