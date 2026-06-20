@@ -38,12 +38,14 @@ class Civ6Bot(commands.Bot):
         self.guild_id = guild_id
 
     async def setup_hook(self):
-        await self.load_extension("cogs.setup")
-        guild = discord.Object(id=self.guild_id)
-        self.tree.clear_commands(guild=guild)
-        self.tree.copy_global_to(guild=guild)
-        await self.tree.sync(guild=guild)
-        logger.info("Slash commands synced to guild %s", self.guild_id)
+        try:
+            await self.load_extension("cogs.setup")
+            guild = discord.Object(id=self.guild_id)
+            self.tree.copy_global_to(guild=guild)
+            await self.tree.sync(guild=guild)
+            logger.info("Slash commands synced to guild %s", self.guild_id)
+        except Exception as e:
+            logger.error("setup_hook failed: %s", e)
 
     async def on_ready(self):
         logger.info(f"Logged in as {self.user} (ID: {self.user.id})")

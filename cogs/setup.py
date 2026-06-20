@@ -73,14 +73,15 @@ class Setup(commands.Cog):
     )
     @app_commands.default_permissions(manage_guild=True)
     async def channel(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         set_notification_channel(str(interaction.channel_id))
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"Turn notifications will now be posted in {interaction.channel.mention}.",
-            ephemeral=True,
         )
 
     @app_commands.command(name="status", description="Show bot configuration status")
     async def status(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         channel_id = get_notification_channel()
         player_count = len(get_all_players())
 
@@ -90,7 +91,7 @@ class Setup(commands.Cog):
             f"**Notification channel:** {f'<#{channel_id}>' if channel_id else '*Not set*'}",
             f"**Registered players:** {player_count}",
         ]
-        await interaction.response.send_message("\n".join(lines))
+        await interaction.followup.send("\n".join(lines))
 
 
 async def setup(bot: commands.Bot):
