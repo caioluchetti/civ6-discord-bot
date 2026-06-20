@@ -40,6 +40,7 @@ class Civ6Bot(commands.Bot):
     async def setup_hook(self):
         await self.load_extension("cogs.setup")
         guild = discord.Object(id=self.guild_id)
+        self.tree.clear_commands(guild=guild)
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
         logger.info("Slash commands synced to guild %s", self.guild_id)
