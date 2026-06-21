@@ -8,6 +8,7 @@ from urllib.parse import quote as urlquote
 from flask import Flask, request, jsonify, render_template, redirect
 
 from storage import (
+    delete_game,
     get_discord_id,
     get_next_player,
     get_notification_channel,
@@ -241,6 +242,15 @@ def api_player_order_delete(game_name):
     if auth_err:
         return auth_err
     clear_player_order(game_name)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/game/<path:game_name>", methods=["DELETE"])
+def api_game_delete(game_name):
+    auth_err = _require_secret()
+    if auth_err:
+        return auth_err
+    delete_game(game_name)
     return jsonify({"ok": True})
 
 

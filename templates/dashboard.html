@@ -442,6 +442,7 @@
     {% if has_manual_order %}
     <button id="btn-reset-order" class="danger" onclick="resetPlayerOrder()">Reset Order</button>
     {% endif %}
+    <button id="btn-delete-game" class="danger" onclick="deleteGame()">Delete Game</button>
   </div>
   <div class="table-wrapper">
   <table>
@@ -576,6 +577,28 @@ async function resetPlayerOrder() {
     const gameName = document.querySelector('#game-list li.active')?.dataset?.game || GAME_NAME;
     await fetch('/api/game/' + encodeURIComponent(gameName) + '/order', { method: 'DELETE' });
     location.reload();
+}
+
+async function deleteGame() {
+    const gameName = document.querySelector('#game-list li.active')?.dataset?.game || GAME_NAME;
+    if (!confirm('Delete "' + gameName + '" and all its turn history? This cannot be undone.')) return;
+    const btn = document.getElementById('btn-delete-game');
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+    try {
+        const resp = await fetch('/api/game/' + encodeURIComponent(gameName), { method: 'DELETE' });
+        if (resp.ok) {
+            window.location.href = '/';
+        } else {
+            alert('Failed to delete game.');
+            btn.disabled = false;
+            btn.textContent = 'Delete Game';
+        }
+    } catch {
+        alert('Network error.');
+        btn.disabled = false;
+        btn.textContent = 'Delete Game';
+    }
 }
 
 // --- Delegated drag events (attached once, never duplicated) ---

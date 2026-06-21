@@ -150,6 +150,20 @@ def clear_player_order(game_name):
         _save_json(CONFIG_FILE, config)
 
 
+def delete_game(game_name):
+    with _lock:
+        history = _load_json(HISTORY_FILE, {"history": []})
+        history["history"] = [e for e in history["history"] if e["game"] != game_name]
+        _save_json(HISTORY_FILE, history)
+
+        config = _load_json(CONFIG_FILE, {"notification_channel_id": None})
+        if "game_order" in config:
+            config["game_order"] = [g for g in config.get("game_order", []) if g != game_name]
+        if "player_orders" in config and game_name in config["player_orders"]:
+            del config["player_orders"][game_name]
+        _save_json(CONFIG_FILE, config)
+
+
 def get_current_turn(game_name=None):
     history = get_turn_history(game_name)
     if not history:
